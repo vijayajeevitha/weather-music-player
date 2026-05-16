@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weather Music Player</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0c0d10;
+      --surface: #13151a;
+      --card:    #181b22;
+      --border:  rgba(255,255,255,0.07);
+      --border2: rgba(255,255,255,0.13);
+      --text:    #e9e7e1;
+      --muted:   rgba(233,231,225,0.42);
+      --accent:  #c8a96e;
+      --accent2: #7eb8c9;
+      --glow:    rgba(200,169,110,0.13);
+      --radius:  16px;
+      --fD: 'DM Serif Display', Georgia, serif;
+      --fS: 'DM Sans', system-ui, sans-serif;
+    }
+
+    html { font-size: 16px; scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--fS);
+      font-weight: 300;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 20px 100px;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: -10%; left: 50%;
+      transform: translateX(-50%);
+      width: 800px; height: 500px;
+      background: radial-gradient(ellipse at center, var(--glow) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+      transition: background 1.4s ease;
+    }
+
+    /* ── HEADER ── */
+    header {
+      position: relative; z-index: 1;
+      text-align: center;
+      padding: 64px 0 48px;
+      max-width: 600px;
+    }
+    .eyebrow {
+      font-size: 10.5px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 16px;
+    }
+    h1 {
+      font-family: var(--fD);
+      font-size: clamp(2.4rem, 7vw, 4rem);
+      font-weight: 400;
+      line-height: 1.08;
+    }
+    h1 em { font-style: italic; color: var(--accent); }
+    .subtitle {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 0.93rem;
+      line-height: 1.6;
+    }
+
+    /* ── SEARCH ── */
+    .search-wrap {
+      position: relative; z-index: 1;
+      width: 100%; max-width: 500px;
+      display: flex; gap: 10px;
+    }
+    .search-wrap input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      padding: 15px 22px;
+      font-family: var(--fS);
+      font-size: 0.95rem;
+      font-weight: 300;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .search-wrap input::placeholder { color: var(--muted); }
+    .search-wrap input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(200,169,110,0.12);
+    }
+    .search-wrap button {
+      background: var(--accent);
+      border: none;
+      border-radius: var(--radius);
+      padding: 15px 26px;
+      font-family: var(--fS);
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #0c0d10;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.15s, transform 0.12s;
+    }
+    .search-wrap button:hover  { opacity: 0.85; }
+    .search-wrap button:active { transform: scale(0.97); }
+    .search-wrap button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    /* ── ERROR ── */
+    #error-msg {
+      position: relative; z-index: 1;
+      margin-top: 14px;
+      padding: 13px 20px;
+      background: rgba(220,80,80,0.1);
+      border: 1px solid rgba(220,80,80,0.22);
+      border-radius: 10px;
+      color: #e98888;
+      font-size: 0.87rem;
+      max-width: 500px; width: 100%;
+      display: none;
+    }
+    #error-msg.show { display: block; }
+
+    /* ── LOADING ── */
+    #loading {
+      position: relative; z-index: 1;
+      margin-top: 48px;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+    #loading.show { display: flex; }
+
+    .spinner-wrap {
+      position: relative;
+      width: 44px; height: 44px;
+    }
+    .spinner {
+      width: 44px; height: 44px;
+      border: 2px solid var(--border2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+    }
+    .loading-steps {
+      font-size: 0.83rem;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.7;
+    }
+    .loading-steps span {
+      display: block;
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+    .loading-steps span.active { opacity: 1; color: var(--text); }
+    .loading-steps span.done   { opacity: 0.4; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── RESULT ── */
+    #result {
+      position: relative; z-index: 1;
+      margin-top: 40px;
+      width: 100%; max-width: 640px;
+      display: none;
+      flex-direction: column;
+      gap: 18px;
+    }
+    #result.show { display: flex; animation: fadeUp 0.5s ease both; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* weather card */
+    .weather-card {
+      background: var(--card);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      padding: 28px 28px 22px;
+    }
+    .wc-top { display: flex; align-items: flex-start; gap: 18px; }
+    .wc-icon { font-size: 3.2rem; line-height: 1; flex-shrink: 0; margin-top: 2px; }
+    .wc-main { flex: 1; min-width: 0; }
+    .wc-city {
+      font-family: var(--fD);
+      font-size: 1.7rem;
+      font-weight: 400;
+      line-height: 1.1;
+    }
+    .wc-desc {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 0.87rem;
+      text-transform: capitalize;
+    }
+    .wc-temp {
+      font-family: var(--fD);
+      font-size: 3rem;
+      font-weight: 400;
+      color: var(--accent);
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .wc-stats {
+      display: flex; gap: 24px; flex-wrap: wrap;
+      margin-top: 20px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+    }
+    .wc-stat { display: flex; flex-direction: column; gap: 3px; }
+    .wc-stat-label {
+      font-size: 0.72rem; color: var(--muted);
+      letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    .wc-stat-value { font-size: 0.9rem; font-weight: 400; }
+
+    /* mood pill */
+    .mood-pill {
+      display: inline-flex; align-items: center; gap: 7px;
+      background: rgba(200,169,110,0.09);
+      border: 1px solid rgba(200,169,110,0.18);
+      border-radius: 999px;
+      padding: 6px 16px;
+      font-size: 0.8rem;
+      color: var(--accent);
+      align-self: flex-start;
+      letter-spacing: 0.05em;
+    }
+
+    /* songs */
+    .songs-header {
+      font-family: var(--fD);
+      font-size: 1.2rem;
+      font-weight: 400;
+    }
+    .songs-count {
+      font-family: var(--fS);
+      font-size: 0.78rem;
+      color: var(--muted);
+      font-weight: 300;
+      margin-left: 8px;
+    }
+    .songs-list { display: flex; flex-direction: column; gap: 3px; }
+
+    .song-item {
+      display: flex; align-items: center; gap: 14px;
+      padding: 13px 18px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      text-decoration: none;
+      color: var(--text);
+      transition: background 0.15s, border-color 0.15s, transform 0.12s;
+    }
+    .song-item:hover {
+      background: rgba(255,255,255,0.035);
+      border-color: var(--border2);
+      transform: translateX(4px);
+    }
+    .song-num  {
+      font-size: 0.72rem; color: var(--muted);
+      width: 18px; text-align: right; flex-shrink: 0;
+    }
+    .song-play {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: rgba(200,169,110,0.1);
+      border: 1px solid rgba(200,169,110,0.18);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; color: var(--accent);
+      font-size: 0.68rem; padding-left: 2px;
+      transition: background 0.15s;
+    }
+    .song-item:hover .song-play { background: rgba(200,169,110,0.22); }
+    .song-art {
+      width: 38px; height: 38px;
+      border-radius: 6px;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: var(--surface);
+    }
+    .song-text { flex: 1; overflow: hidden; }
+    .song-title  {
+      font-size: 0.88rem; font-weight: 400;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .song-artist {
+      font-size: 0.76rem; color: var(--muted);
+      margin-top: 3px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .song-ext {
+      color: var(--muted); font-size: 0.78rem;
+      flex-shrink: 0; transition: color 0.15s;
+    }
+    .song-item:hover .song-ext { color: var(--accent); }
+
+    /* ── FOOTER ── */
+    footer {
+      position: relative; z-index: 1;
+      margin-top: 64px;
+      font-size: 0.77rem;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.9;
+    }
+    footer a { color: var(--accent2); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    @media (max-width: 520px) {
+      h1 { font-size: 2.4rem; }
+      .wc-temp { font-size: 2.2rem; }
+      .search-wrap { flex-direction: column; }
+      .search-wrap button { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <p class="eyebrow">Weather × Music</p>
+    <h1>The <em>mood</em><br>of the sky</h1>
+    <p class="subtitle">Enter any city — get music matched to its current weather.</p>
+  </header>
+
+  <div class="search-wrap">
+    <input
+      id="city-input"
+      type="text"
+      placeholder="London, Tokyo, Mumbai…"
+      autocomplete="off"
+      spellcheck="false"
+    />
+    <button id="search-btn" onclick="fetchAll()">Get Music ↗</button>
+  </div>
+
+  <div id="error-msg" role="alert"></div>
+
+  <div id="loading" aria-live="polite">
+    <div class="spinner-wrap"><div class="spinner"></div></div>
+    <div class="loading-steps">
+      <span id="ls1">Fetching weather…</span>
+      <span id="ls2">Finding music…</span>
+      <span id="ls3">Almost ready…</span>
+    </div>
+  </div>
+
+  <section id="result" aria-live="polite">
+    <div class="weather-card">
+      <div class="wc-top">
+        <div class="wc-icon" id="r-icon">☀️</div>
+        <div class="wc-main">
+          <div class="wc-city"    id="r-city">—</div>
+          <div class="wc-desc"    id="r-desc">—</div>
+        </div>
+        <div class="wc-temp"      id="r-temp">—</div>
+      </div>
+      <div class="wc-stats">
+        <div class="wc-stat">
+          <span class="wc-stat-label">Feels like</span>
+          <span class="wc-stat-value" id="r-feels">—</span>
+        </div>
+        <div class="wc-stat">
+          <span class="wc-stat-label">Humidity</span>
+          <span class="wc-stat-value" id="r-humidity">—</span>
+        </div>
+        <div class="wc-stat">
+          <span class="wc-stat-label">Wind</span>
+          <span class="wc-stat-value" id="r-wind">—</span>
+        </div>
+        <div class="wc-stat">
+          <span class="wc-stat-label">Condition</span>
+          <span class="wc-stat-value" id="r-weather">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mood-pill"><span>♪</span><span id="r-mood">—</span></div>
+
+    <div>
+      <span class="songs-header">Recommended tracks</span>
+      <span class="songs-count" id="r-count"></span>
+    </div>
+    <div class="songs-list" id="songs-list"></div>
+  </section>
+
+  <footer>
+    Weather by <a href="https://openweathermap.org" target="_blank" rel="noopener">OpenWeatherMap</a>
+    &nbsp;·&nbsp;
+    Music by <a href="https://music.apple.com" target="_blank" rel="noopener">iTunes / Apple Music</a>
+    <br>Free to use · No login required
+  </footer>
+
+  <script>
+    // ── CONFIG ─────────────────────────────────────────────────────────────
+    // Replace with your own key from openweathermap.org (free)
+    const OWM_KEY = "a58b438f13d7c7964dea4205449742ca";
+
+    const MOOD_MAP = {
+      Rain:         ["lofi rain", "calm piano", "rainy day"],
+      Drizzle:      ["lofi chill", "soft rain music"],
+      Thunderstorm: ["cinematic dark", "epic orchestral", "storm music"],
+      Clear:        ["happy pop", "sunny day", "feel good"],
+      Clouds:       ["chill acoustic", "indie folk", "soft guitar"],
+      Snow:         ["peaceful piano", "winter ambient"],
+      Mist:         ["ambient chill", "dreamy music"],
+      Fog:          ["ambient chill", "soft instrumental"],
+      Haze:         ["chill lofi", "mellow music"],
+    };
+
+    const WEATHER_ICONS = {
+      Clear:"☀️", Clouds:"☁️", Rain:"🌧️", Drizzle:"🌦️",
+      Thunderstorm:"⛈️", Snow:"❄️", Mist:"🌫️", Fog:"🌫️", Haze:"🌫️",
+    };
+
+    const WEATHER_GLOWS = {
+      Clear:        "rgba(255,200,70,0.18)",
+      Clouds:       "rgba(140,175,215,0.15)",
+      Rain:         "rgba(70,125,205,0.18)",
+      Drizzle:      "rgba(70,125,205,0.14)",
+      Thunderstorm: "rgba(90,55,165,0.22)",
+      Snow:         "rgba(200,230,255,0.14)",
+    };
+
+    // ── DOM ────────────────────────────────────────────────────────────────
+    const $ = id => document.getElementById(id);
+    const input  = $("city-input");
+    const btn    = $("search-btn");
+    const errEl  = $("error-msg");
+    const loader = $("loading");
+    const result = $("result");
+
+    input.addEventListener("keydown", e => { if (e.key === "Enter") fetchAll(); });
+
+    // ── LOADING STEPS ──────────────────────────────────────────────────────
+    function stepLoading(step) {
+      // step: 1, 2, 3
+      ["ls1","ls2","ls3"].forEach((id, i) => {
+        const el = $(id);
+        el.className = i + 1 < step ? "done" : i + 1 === step ? "active" : "";
+      });
+    }
+
+    function setLoading(on) {
+      btn.disabled = on;
+      loader.classList.toggle("show", on);
+      if (on) {
+        result.classList.remove("show");
+        clearError();
+        stepLoading(1);
+      }
+    }
+
+    function showError(msg) {
+      errEl.innerHTML = msg;
+      errEl.classList.add("show");
+    }
+    function clearError() {
+      errEl.innerHTML = "";
+      errEl.classList.remove("show");
+    }
+
+    // ── MAIN FETCH ─────────────────────────────────────────────────────────
+    async function fetchAll() {
+      const city = input.value.trim();
+      if (!city) { input.focus(); return; }
+
+      setLoading(true);
+
+      try {
+        // STEP 1: Weather from OpenWeatherMap (called directly from browser)
+        stepLoading(1);
+        const owmUrl = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${OWM_KEY}&units=metric`;
+        const wRes = await fetch(owmUrl);
+        const wData = await wRes.json();
+
+        if (!wRes.ok) {
+          showError(`City not found: <strong>${esc(city)}</strong>. Try a different spelling.`);
+          setLoading(false);
+          return;
+        }
+
+        // STEP 2: Music from iTunes Search API (free, no key, CORS enabled)
+        stepLoading(2);
+        const weatherMain = wData.weather[0].main;
+        const moods       = MOOD_MAP[weatherMain] || ["chill music"];
+        const mood        = moods[Math.floor(Math.random() * moods.length)];
+
+        const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(mood)}&media=music&entity=song&limit=10&explicit=No`;
+        const mRes  = await fetch(itunesUrl);
+        const mData = await mRes.json();
+
+        stepLoading(3);
+        await new Promise(r => setTimeout(r, 300)); // brief pause so user sees step 3
+
+        // STEP 3: Render
+        renderResult(wData, mData.results || [], mood);
+
+      } catch (err) {
+        console.error(err);
+        showError("Network error. Please check your connection and try again.");
+      }
+
+      setLoading(false);
+    }
+
+    // ── RENDER ─────────────────────────────────────────────────────────────
+    function renderResult(w, tracks, mood) {
+      const weatherMain = w.weather[0].main;
+
+      // Ambient glow
+      const glow = WEATHER_GLOWS[weatherMain] || "rgba(200,169,110,0.13)";
+      document.documentElement.style.setProperty("--glow", glow);
+
+      // Weather card
+      $("r-icon").textContent     = WEATHER_ICONS[weatherMain] || "🎵";
+      $("r-city").textContent     = `${w.name}, ${w.sys.country}`;
+      $("r-desc").textContent     = w.weather[0].description;
+      $("r-temp").textContent     = `${Math.round(w.main.temp)}°C`;
+      $("r-feels").textContent    = `${Math.round(w.main.feels_like)}°C`;
+      $("r-humidity").textContent = `${w.main.humidity}%`;
+      $("r-wind").textContent     = `${Math.round(w.wind?.speed || 0)} m/s`;
+      $("r-weather").textContent  = weatherMain;
+      $("r-mood").textContent     = mood;
+      $("r-count").textContent    = tracks.length ? `${tracks.length} songs` : "";
+
+      // Songs list
+      const list = $("songs-list");
+      list.innerHTML = "";
+
+      if (tracks.length === 0) {
+        list.innerHTML = `<div style="padding:20px;color:var(--muted);font-size:0.87rem">
+          No tracks found for this mood. Try searching again for a different result.
+        </div>`;
+      } else {
+        tracks.forEach((track, i) => {
+          const a = document.createElement("a");
+          // Link to Apple Music preview or track page
+          a.href      = track.trackViewUrl || track.previewUrl || "#";
+          a.target    = "_blank";
+          a.rel       = "noopener noreferrer";
+          a.className = "song-item";
+          a.style.animation = `fadeUp 0.4s ease ${i * 0.05}s both`;
+
+          const art = track.artworkUrl60 || "";
+          a.innerHTML = `
+            <span class="song-num">${i + 1}</span>
+            <span class="song-play">▶</span>
+            ${art ? `<img class="song-art" src="${esc(art)}" alt="" loading="lazy" />` : ""}
+            <span class="song-text">
+              <span class="song-title">${esc(track.trackName || "Untitled")}</span>
+              <span class="song-artist">${esc(track.artistName || "Unknown")} — ${esc(track.collectionName || "")}</span>
+            </span>
+            <span class="song-ext">↗</span>
+          `;
+          list.appendChild(a);
+        });
+      }
+
+      // Animate in
+      result.classList.remove("show");
+      void result.offsetWidth;
+      result.classList.add("show");
+      result.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    function esc(str) {
+      return String(str).replace(/[&<>"']/g, c =>
+        ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+    }
+  </script>
+</body>
+</html>
